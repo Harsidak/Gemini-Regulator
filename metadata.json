@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Regulator",
+  "description": "An autonomous multimodal compliance and risk intelligence agent powered by Google Gemini 2.5.",
+  "requestFramePermissions": []
+}
