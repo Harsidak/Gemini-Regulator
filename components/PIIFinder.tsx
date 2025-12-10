@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { PIIFinding } from '../types';
-import { Fingerprint, Eye, EyeOff, ShieldAlert, FileText, Lock } from 'lucide-react';
+import { Fingerprint, Eye, EyeOff, ShieldAlert, FileText, Lock, Mail, Phone, MapPin, CreditCard, User, FileDigit } from 'lucide-react';
 
 interface PIIFinderProps {
   findings: PIIFinding[];
@@ -29,6 +30,17 @@ const PIIFinder: React.FC<PIIFinderProps> = ({ findings }) => {
     }
   };
 
+  const getIconForType = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('email')) return <Mail size={12} className="text-slate-400"/>;
+    if (t.includes('phone')) return <Phone size={12} className="text-slate-400"/>;
+    if (t.includes('address')) return <MapPin size={12} className="text-slate-400"/>;
+    if (t.includes('card') || t.includes('financial')) return <CreditCard size={12} className="text-slate-400"/>;
+    if (t.includes('name')) return <User size={12} className="text-slate-400"/>;
+    if (t.includes('ssn') || t.includes('id') || t.includes('social')) return <FileDigit size={12} className="text-slate-400"/>;
+    return <Lock size={12} className="text-slate-400"/>;
+  };
+
   if (!findings || findings.length === 0) return null;
 
   return (
@@ -52,7 +64,7 @@ const PIIFinder: React.FC<PIIFinderProps> = ({ findings }) => {
             
             <div className="flex items-center justify-between mb-2">
               <span className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wide">
-                <Lock size={12} className="text-slate-400"/>
+                {getIconForType(item.type)}
                 {item.type}
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${getRiskColor(item.risk_level)}`}>

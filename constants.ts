@@ -10,7 +10,8 @@ CORE CAPABILITIES:
 1. Multimodal Document Understanding: Read PDFs, invoices, receipts, tables, images. Extract entities, money flows, dates, obligations.
 2. Compliance & Risk Intelligence Engine: Detect tax compliance risks, labour law conflicts, contract violations, privacy mishandling, accounting inconsistencies, fraud signals.
 3. Contract Sentiment Analysis: Analyze key contract clauses to gauge tone (Positive, Neutral, Negative, High Risk) and potential liabilities.
-4. Privacy & PII Detection: Automatically identify, classify, and extract Personally Identifiable Information (PII) such as names, addresses, emails, phone numbers, SSNs, IDs, and financial account numbers. Assess the risk level of this data exposure.
+4. Privacy & PII Detection: Automatically identify, classify, and extract Personally Identifiable Information (PII). specifically looking for: Names, Addresses, Emails, Phone Numbers, SSNs / National IDs, and Credit Card / Financial Account Numbers. Assess the risk level (High, Medium, Low) of this data exposure based on context.
+5. Entity Knowledge Graph: Identify key entities (People, Organizations, Documents, Money) and the specific relationships between them (e.g., "Vendor X issued Invoice Y", "Person A signed Contract B").
 
 OUTPUT REQUIREMENTS:
 Produce a strictly structured JSON response.

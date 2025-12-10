@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { RegulatorReport, ProcessedFile, RegulatoryNewsData, NewsSource } from "../types";
 import { GEMINI_MODEL, SYSTEM_INSTRUCTION } from "../constants";
@@ -83,12 +84,26 @@ const responseSchema: Schema = {
             type: Type.OBJECT,
             properties: {
                 name: { type: Type.STRING },
-                type: { type: Type.STRING, enum: ["Person", "Organization", "Money", "Location"] },
+                type: { type: Type.STRING, enum: ["Person", "Organization", "Money", "Location", "Document", "Product"] },
                 details: { type: Type.STRING }
             },
             required: ["name", "type", "details"]
         },
-        description: "Key people, organizations, and financial figures found."
+        description: "Key people, organizations, financial figures, and products found."
+    },
+    entity_relationships: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                source_entity: { type: Type.STRING, description: "Name of the entity initiating the relationship" },
+                target_entity: { type: Type.STRING, description: "Name of the entity receiving the relationship" },
+                relationship_type: { type: Type.STRING, description: "e.g., 'Paid', 'Signed', 'Issued', 'Violated'" },
+                supporting_evidence: { type: Type.STRING, description: "Brief reason or evidence for this link" }
+            },
+            required: ["source_entity", "target_entity", "relationship_type", "supporting_evidence"]
+        },
+        description: "A knowledge graph showing how extracted entities are connected."
     },
     compliance_matrix: {
         type: Type.ARRAY,
@@ -121,14 +136,14 @@ const responseSchema: Schema = {
         items: {
             type: Type.OBJECT,
             properties: {
-                type: { type: Type.STRING, description: "Type of PII (e.g., Email, SSN, Phone, Address)" },
+                type: { type: Type.STRING, description: "Classification of PII: Name, Address, Email, Phone Number, SSN, or Credit Card." },
                 value: { type: Type.STRING, description: "The PII value found" },
                 risk_level: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
                 location_citation: { type: Type.STRING, description: "Document and location where PII was found" }
             },
             required: ["type", "value", "risk_level", "location_citation"]
         },
-        description: "List of Personally Identifiable Information (PII) detected in the documents."
+        description: "List of Personally Identifiable Information (PII) detected in the documents, classified by type."
     },
     causal_chain: {
         type: Type.ARRAY,
@@ -146,7 +161,7 @@ const responseSchema: Schema = {
         description: "A step-by-step causal analysis showing how one event leads to another risk."
     }
   },
-  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "compliance_matrix", "contract_sentiment", "pii_findings", "causal_chain"]
+  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "entity_relationships", "compliance_matrix", "contract_sentiment", "pii_findings", "causal_chain"]
 };
 
 export const analyzeDocuments = async (files: ProcessedFile[]): Promise<RegulatorReport> => {
@@ -158,7 +173,7 @@ export const analyzeDocuments = async (files: ProcessedFile[]): Promise<Regulato
 
   // Construct parts: Text prompt + Files
   const parts: any[] = [
-    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, performing a compliance audit against standard frameworks, performing a sentiment/risk analysis on key contract clauses, and identifying ALL Personally Identifiable Information (PII) to generate a privacy audit. Construct a Causal Chain Analysis that links specific events to risks with supporting evidence for each step. For every risk explanation, you MUST provide the exact verbatim data or quote from the file and the specific source citation including page numbers, row numbers, or image locations." }
+    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, performing a compliance audit against standard frameworks, performing a sentiment/risk analysis on key contract clauses, and identifying ALL Personally Identifiable Information (PII) to generate a privacy audit. Construct a Causal Chain Analysis that links specific events to risks. Also, build an Entity Knowledge Graph by extracting specific relationships between the entities found. For every risk explanation, you MUST provide the exact verbatim data or quote from the file and the specific source citation including page numbers, row numbers, or image locations." }
   ];
 
   // Note: Large payloads might trigger XHR errors on the browser side.

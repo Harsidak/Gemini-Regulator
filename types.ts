@@ -34,8 +34,15 @@ export interface TimelineEvent {
 
 export interface Entity {
   name: string;
-  type: 'Person' | 'Organization' | 'Money' | 'Location';
+  type: 'Person' | 'Organization' | 'Money' | 'Location' | 'Document' | 'Product';
   details: string;
+}
+
+export interface EntityRelationship {
+  source_entity: string;
+  target_entity: string;
+  relationship_type: string;
+  supporting_evidence: string;
 }
 
 export interface ComplianceCheck {
@@ -82,6 +89,7 @@ export interface RegulatorReport {
   c_suite_summary: string;
   timeline: TimelineEvent[];
   entities: Entity[];
+  entity_relationships: EntityRelationship[];
   compliance_matrix: ComplianceCheck[];
   contract_sentiment: ContractClauseSentiment[];
   pii_findings: PIIFinding[];

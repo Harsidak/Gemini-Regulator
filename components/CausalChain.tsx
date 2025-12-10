@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { CausalChainStep } from '../types';
-import { GitCommit, ArrowDown, FileText, ZoomIn, Quote } from 'lucide-react';
+import { GitCommit, ArrowDown, FileText, ZoomIn, Quote, ChevronDown } from 'lucide-react';
 
 interface CausalChainProps {
   steps: CausalChainStep[];
@@ -46,7 +46,7 @@ const CausalChain: React.FC<CausalChainProps> = ({ steps }) => {
                         onClick={() => setActiveStep(isActive ? null : idx)}
                         className={`
                             flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-4 
-                            transition-all duration-300 cursor-pointer shadow-lg
+                            transition-all duration-300 cursor-pointer shadow-lg z-10
                             ${isActive 
                                 ? 'bg-neon-blue-electric border-white shadow-neon-blue/40 scale-110' 
                                 : 'bg-white border-slate-100 group-hover:border-neon-blue-light group-hover:bg-neon-blue/10'}
@@ -70,9 +70,12 @@ const CausalChain: React.FC<CausalChainProps> = ({ steps }) => {
                         `}
                     >
                         <div className="p-4">
-                            <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
-                                {step.event_description}
-                            </h4>
+                            <div className="flex justify-between items-start gap-3">
+                                <h4 className={`font-bold text-sm ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
+                                    {step.event_description}
+                                </h4>
+                                <ChevronDown size={16} className={`flex-shrink-0 text-slate-400 transition-transform duration-300 ${isActive ? 'rotate-180 text-neon-blue-deep' : ''}`} />
+                            </div>
                             
                             <div className="flex items-center gap-2 mt-2">
                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
@@ -89,7 +92,7 @@ const CausalChain: React.FC<CausalChainProps> = ({ steps }) => {
                         {/* Expandable Evidence Section */}
                         <div className={`
                             bg-slate-50/80 border-t border-slate-100/50 transition-all duration-500 ease-in-out
-                            ${isActive ? 'max-h-[300px] opacity-100 p-4' : 'max-h-0 opacity-0 p-0 overflow-hidden'}
+                            ${isActive ? 'max-h-[500px] opacity-100 p-4' : 'max-h-0 opacity-0 p-0 overflow-hidden'}
                         `}>
                             <div className="mb-3">
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">

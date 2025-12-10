@@ -4,13 +4,14 @@ import { RegulatorReport, RiskSeverity, RegulatoryNewsData } from '../types';
 import RiskChart from './RiskChart';
 import Timeline from './Timeline';
 import EntityGrid from './EntityGrid';
+import EntityGraph from './EntityGraph';
 import RegulatoryNews from './RegulatoryNews';
 import ContractSentiment from './ContractSentiment';
 import PIIFinder from './PIIFinder';
 import DeepAnalytics from './DeepAnalytics';
 import CausalChain from './CausalChain';
 import { fetchRegulatoryNews } from '../services/geminiService';
-import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search, Download } from 'lucide-react';
+import { ShieldAlert, CheckCircle, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -57,66 +58,71 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
     setIsExporting(true);
 
     // 1. Prepare DOM for capture
-    const originalStyles: { element: HTMLElement, maxHeight: string, overflow: string }[] = [];
+    // Store original styles to restore later
+    const originalStyles: Map<HTMLElement, { maxHeight: string; overflow: string; height: string }> = new Map();
+    
+    // Select all scrollable containers that need expansion to show full content in PDF
     const scrollableElements = reportRef.current.querySelectorAll('.overflow-y-auto, .custom-scrollbar');
 
-    // Temporarily expand all scrollable sections to show full content
-    scrollableElements.forEach((el) => {
-        const element = el as HTMLElement;
-        originalStyles.push({
-            element,
-            maxHeight: element.style.maxHeight,
-            overflow: element.style.overflow
+    scrollableElements.forEach((node) => {
+        const el = node as HTMLElement;
+        originalStyles.set(el, {
+            maxHeight: el.style.maxHeight,
+            overflow: el.style.overflow,
+            height: el.style.height
         });
-        element.style.maxHeight = 'none';
-        element.style.overflow = 'visible';
+
+        // Force expansion
+        el.style.maxHeight = 'none';
+        el.style.height = 'auto'; 
+        el.style.overflow = 'visible';
     });
 
     try {
-      // Wait for DOM reflow
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait a moment for DOM layout to settle/reflow after expansion
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 2. Capture
       const canvas = await html2canvas(reportRef.current, {
-        scale: 3, // High resolution for crisper text
+        scale: 2, // 2x scale for retina-like quality without massive file size
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#f8fafc', // Force a solid background to avoid transparency issues
+        backgroundColor: '#f8fafc', // Force solid background color
         logging: false,
-        onclone: (clonedDoc) => {
-            // Optional: tweaks to the cloned document before screenshot
-            const clonedReport = clonedDoc.getElementById('report-content');
-            if (clonedReport) {
-                clonedReport.style.padding = '20px'; // Add some padding for the PDF
-            }
+        ignoreElements: (element) => {
+            // Do not include the export button in the PDF
+            if (element.getAttribute('data-exporting') === 'true') return true;
+            return false;
         }
       });
 
       // 3. Generate PDF
       const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
       
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      // Calculate dimensions: Use A4 width (210mm) as base, but allow variable height
+      const pdfWidth = 210; 
+      const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
 
-      // Create a custom size PDF to match the long scrolling content (like a digital receipt)
-      // This prevents awkward page breaks cutting graphs in half.
-      const pdfCustom = new jsPDF('p', 'mm', [pdfWidth, imgHeight]);
-      pdfCustom.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-      pdfCustom.save(`Regulator_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+      // Initialize PDF with custom size matching the content ("Long Scroll" format)
+      const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Regulator_X_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 
     } catch (err) {
       console.error("PDF Export failed:", err);
-      alert("Failed to export PDF. Please try again.");
+      alert("Failed to generate PDF. Please try again.");
     } finally {
       // 4. Restore DOM state
-      scrollableElements.forEach((el, index) => {
-          const original = originalStyles[index];
-          if (original) {
-              const element = el as HTMLElement;
-              element.style.maxHeight = original.maxHeight;
-              element.style.overflow = original.overflow;
+      scrollableElements.forEach((node) => {
+          const el = node as HTMLElement;
+          const styles = originalStyles.get(el);
+          if (styles) {
+              el.style.maxHeight = styles.maxHeight;
+              el.style.overflow = styles.overflow;
+              el.style.height = styles.height;
           }
       });
       setIsExporting(false);
@@ -153,11 +159,11 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
                         <button 
                             onClick={handleExportPDF}
                             disabled={isExporting}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-xs font-bold transition-all data-[exporting=true]:opacity-50"
-                            data-exporting={isExporting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-xs font-bold transition-all disabled:opacity-50"
+                            data-exporting="true"
                         >
                             {isExporting ? <Loader2 size={14} className="animate-spin"/> : <Download size={14} />}
-                            {isExporting ? "Generating..." : "Export PDF"}
+                            {isExporting ? "Generating PDF..." : "Export Report"}
                         </button>
                     </div>
                     <p className="text-slate-200 leading-relaxed text-lg font-light tracking-wide opacity-90">
@@ -204,14 +210,21 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
         </div>
       )}
 
-      {/* --- CAUSAL CHAIN (New) --- */}
+      {/* --- ENTITY GRAPH (New) --- */}
+      {report.entity_relationships && report.entity_relationships.length > 0 && (
+         <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:325ms] [animation-fill-mode:forwards]">
+            <EntityGraph entities={report.entities} relationships={report.entity_relationships} />
+         </div>
+      )}
+
+      {/* --- CAUSAL CHAIN --- */}
       {report.causal_chain && report.causal_chain.length > 0 && (
          <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:350ms] [animation-fill-mode:forwards]">
              <CausalChain steps={report.causal_chain} />
          </div>
       )}
 
-      {/* --- SECOND ROW: TIMELINE & ENTITIES --- */}
+      {/* --- SECOND ROW: TIMELINE & ENTITIES GRID --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 opacity-0 animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
         <Timeline events={report.timeline} />
         <EntityGrid entities={report.entities} />
