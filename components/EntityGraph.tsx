@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Entity, EntityRelationship } from '../types';
-import { Users, Building2, Banknote, MapPin, Box, FileText, ShoppingBag, ArrowRight, Share2, ZoomIn, X, Move, RotateCcw } from 'lucide-react';
+import { Users, Building2, Banknote, MapPin, Box, FileText, ShoppingBag, ArrowRight, Share2, ZoomIn, X, Move, RotateCcw, Maximize } from 'lucide-react';
 
 interface EntityGraphProps {
   entities: Entity[];
@@ -26,6 +26,7 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gRef = useRef<SVGGElement>(null); // Group for Zooming
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedLink, setSelectedLink] = useState<Link | null>(null);
 
@@ -54,16 +55,37 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
     }
   };
 
-  const handleResetZoom = () => {
-    if (svgRef.current && gRef.current) {
+  const handleFitToScreen = () => {
+    if (svgRef.current && gRef.current && zoomRef.current) {
         const svg = d3.select(svgRef.current);
+        const g = d3.select(gRef.current);
         const width = containerRef.current?.clientWidth || 800;
         const height = 600;
+
+        // Calculate bounds of all nodes
+        const bounds = (g.node() as SVGGElement).getBBox();
+        const fullWidth = width;
+        const fullHeight = height;
         
+        // If bounds are empty (no nodes), just reset to center
+        if (bounds.width === 0 || bounds.height === 0) {
+             svg.transition().duration(750).call(
+                zoomRef.current.transform,
+                d3.zoomIdentity.translate(width / 2, height / 2).scale(1)
+            );
+            return;
+        }
+
+        const dx = bounds.width;
+        const dy = bounds.height;
+        const x = bounds.x + dx / 2;
+        const y = bounds.y + dy / 2;
+        const scale = 0.8 / Math.max(dx / fullWidth, dy / fullHeight);
+        const translate = [fullWidth / 2 - scale * x, fullHeight / 2 - scale * y];
+
         svg.transition().duration(750).call(
-            // @ts-ignore
-            d3.zoom().transform,
-            d3.zoomIdentity.translate(width / 2, height / 2).scale(1).translate(-width/2, -height/2) // Centering approximation
+            zoomRef.current.transform,
+            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
         );
     }
   };
@@ -100,6 +122,16 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
       evidence: r.supporting_evidence
     })) || [];
 
+    // Calculate Adjacency for Hover
+    const neighbors = new Map<string, Set<string>>();
+    links.forEach((link: any) => {
+        const s = link.source; // Initially string, becomes obj after simulation
+        const t = link.target;
+        // Note: simulation replaces strings with objects, but we map strictly by ID
+        // We'll handle this dynamically inside hover events using the object references
+    });
+
+
     // 2. Setup SVG Dimensions
     const width = containerRef.current.clientWidth;
     const height = 600;
@@ -129,7 +161,8 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
         .on("zoom", (event) => {
             g.attr("transform", event.transform);
         });
-
+    
+    zoomRef.current = zoom;
     svg.call(zoom);
 
     // 4. Force Simulation
@@ -146,10 +179,11 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
         .data(links)
         .enter().append("line")
         .attr("stroke", "#94a3b8")
-        .attr("stroke-opacity", 0.4)
+        .attr("stroke-opacity", 0.6)
         .attr("stroke-width", 1.5)
         .attr("marker-end", "url(#arrowhead)")
         .style("cursor", "pointer")
+        .style("transition", "all 0.3s ease") // Smooth CSS transition for hover
         .on("click", (event, d) => {
             event.stopPropagation();
             setSelectedLink(d);
@@ -169,6 +203,19 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
             event.stopPropagation();
             setSelectedLink(d);
             setSelectedNode(null);
+        })
+        .on("mouseover", function(event, d) {
+            // Highlight specific link on hover
+            link.filter(l => l === d)
+                .attr("stroke", "#5AB7FF")
+                .attr("stroke-width", 3)
+                .attr("stroke-opacity", 1);
+        })
+        .on("mouseout", function(event, d) {
+             link.filter(l => l === d)
+                .attr("stroke", "#94a3b8")
+                .attr("stroke-width", 1.5)
+                .attr("stroke-opacity", 0.6);
         });
 
 
@@ -190,14 +237,52 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
         .attr("stroke", "#fff")
         .attr("stroke-width", 2)
         .style("filter", "drop-shadow(0px 4px 6px rgba(0,0,0,0.15))")
-        .style("cursor", "grab")
+        .style("cursor", "pointer")
+        .style("transition", "all 0.3s ease")
         .on("click", (event, d) => {
             event.stopPropagation();
             setSelectedNode(d);
             setSelectedLink(null);
         })
-        .on("mouseover", function() { d3.select(this).attr("stroke", "#1e293b").attr("stroke-width", 3); })
-        .on("mouseout", function() { d3.select(this).attr("stroke", "#fff").attr("stroke-width", 2); });
+        .on("dblclick", (event, d) => {
+             event.stopPropagation();
+             // Zoom to node
+             svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(width / 2, height / 2).scale(1.5).translate(-d.x!, -d.y!)
+            );
+            setSelectedNode(d);
+        })
+        .on("mouseover", function(event, d) {
+            // Highlight logic
+            const neighbors = new Set<string>();
+            links.forEach((l: any) => {
+                if (l.source.id === d.id) neighbors.add(l.target.id);
+                if (l.target.id === d.id) neighbors.add(l.source.id);
+            });
+            
+            // Dim all nodes
+            node.style('opacity', 0.2);
+            link.style('opacity', 0.1);
+
+            // Highlight Self and Neighbors
+            node.filter((n: any) => n.id === d.id || neighbors.has(n.id))
+                .style('opacity', 1);
+            
+            // Highlight connections
+            link.filter((l: any) => l.source.id === d.id || l.target.id === d.id)
+                .style('opacity', 1)
+                .attr('stroke', '#5AB7FF')
+                .attr('stroke-width', 2.5);
+
+            d3.select(this).attr("stroke", "#1e293b").attr("stroke-width", 3).attr("r", 20);
+        })
+        .on("mouseout", function() {
+            // Reset
+            node.style('opacity', 1);
+            link.style('opacity', 1).attr('stroke', '#94a3b8').attr('stroke-width', 1.5);
+            d3.select(this).attr("stroke", "#fff").attr("stroke-width", 2).attr("r", 16);
+        });
 
     // Node Labels
     node.append("text")
@@ -272,11 +357,11 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
       {/* Controls Overlay */}
       <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
          <button 
-            onClick={handleResetZoom}
+            onClick={handleFitToScreen}
             className="p-2 bg-white/80 hover:bg-white border border-slate-200 rounded-xl text-slate-600 shadow-sm transition-all active:scale-95"
-            title="Reset View"
+            title="Fit to Screen"
          >
-            <RotateCcw size={18} />
+            <Maximize size={18} />
          </button>
       </div>
 
@@ -289,7 +374,7 @@ const EntityGraph: React.FC<EntityGraphProps> = ({ entities, relationships }) =>
          
          <div className="absolute bottom-4 left-4 text-[10px] text-slate-400 font-mono bg-white/60 px-2 py-1 rounded-md pointer-events-none flex items-center gap-2">
              <Move size={10} />
-             <span>Pan: Drag background | Zoom: Scroll | Nodes: Drag & Click</span>
+             <span>Pan: Drag | Zoom: Scroll | Double Click: Focus Node</span>
          </div>
       </div>
 

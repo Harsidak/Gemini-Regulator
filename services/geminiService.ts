@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { RegulatorReport, ProcessedFile, RegulatoryNewsData, NewsSource } from "../types";
 import { GEMINI_MODEL, SYSTEM_INSTRUCTION } from "../constants";
@@ -136,14 +134,18 @@ const responseSchema: Schema = {
         items: {
             type: Type.OBJECT,
             properties: {
-                type: { type: Type.STRING, description: "Classification of PII: Name, Address, Email, Phone Number, SSN, or Credit Card." },
+                type: { 
+                    type: Type.STRING, 
+                    enum: ["Name", "Address", "Email", "Phone Number", "SSN", "Credit Card", "Other"],
+                    description: "Strict classification of PII type."
+                },
                 value: { type: Type.STRING, description: "The PII value found" },
                 risk_level: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
                 location_citation: { type: Type.STRING, description: "Document and location where PII was found" }
             },
             required: ["type", "value", "risk_level", "location_citation"]
         },
-        description: "List of Personally Identifiable Information (PII) detected in the documents, classified by type."
+        description: "List of Personally Identifiable Information (PII) detected in the documents, classified by type and risk."
     },
     causal_chain: {
         type: Type.ARRAY,

@@ -31,14 +31,16 @@ const PIIFinder: React.FC<PIIFinderProps> = ({ findings }) => {
   };
 
   const getIconForType = (type: string) => {
-    const t = type.toLowerCase();
-    if (t.includes('email')) return <Mail size={12} className="text-slate-400"/>;
-    if (t.includes('phone')) return <Phone size={12} className="text-slate-400"/>;
-    if (t.includes('address')) return <MapPin size={12} className="text-slate-400"/>;
-    if (t.includes('card') || t.includes('financial')) return <CreditCard size={12} className="text-slate-400"/>;
-    if (t.includes('name')) return <User size={12} className="text-slate-400"/>;
-    if (t.includes('ssn') || t.includes('id') || t.includes('social')) return <FileDigit size={12} className="text-slate-400"/>;
-    return <Lock size={12} className="text-slate-400"/>;
+    // Handling strict enums from Gemini API
+    switch (type) {
+        case 'Email': return <Mail size={12} className="text-slate-400"/>;
+        case 'Phone Number': return <Phone size={12} className="text-slate-400"/>;
+        case 'Address': return <MapPin size={12} className="text-slate-400"/>;
+        case 'Credit Card': return <CreditCard size={12} className="text-slate-400"/>;
+        case 'Name': return <User size={12} className="text-slate-400"/>;
+        case 'SSN': return <FileDigit size={12} className="text-slate-400"/>;
+        default: return <Lock size={12} className="text-slate-400"/>;
+    }
   };
 
   if (!findings || findings.length === 0) return null;
