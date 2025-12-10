@@ -65,6 +65,14 @@ export interface EvidenceItem {
     source_citation: string;
 }
 
+export interface CausalChainStep {
+    step_number: number;
+    event_description: string;
+    risk_impact: string; // e.g., "Increases financial exposure"
+    supporting_evidence: string; // The quote or data point
+    source_document: string; // Citation
+}
+
 export interface RegulatorReport {
   extracted_evidence: string[];
   red_flags: RedFlag[];
@@ -77,6 +85,7 @@ export interface RegulatorReport {
   compliance_matrix: ComplianceCheck[];
   contract_sentiment: ContractClauseSentiment[];
   pii_findings: PIIFinding[];
+  causal_chain: CausalChainStep[];
 }
 
 export interface ProcessedFile {

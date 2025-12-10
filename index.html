@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gemini Regulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -41,6 +43,39 @@
             animation: {
               'float': 'float 20s infinite ease-in-out',
               'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'slide-up': 'slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'slide-down': 'slideDown 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'scale-in': 'scaleIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+              'blur-in': 'blurIn 0.8s ease-out forwards',
+              'gradient': 'gradient 8s ease infinite',
+            },
+            keyframes: {
+              slideUp: {
+                '0%': { transform: 'translateY(40px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              slideDown: {
+                '0%': { transform: 'translateY(-40px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              scaleIn: {
+                '0%': { transform: 'scale(0.9)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              blurIn: {
+                 '0%': { filter: 'blur(12px)', opacity: '0' },
+                 '100%': { filter: 'blur(0)', opacity: '1' }
+              },
+              gradient: {
+                '0%, 100%': {
+                  'background-size': '200% 200%',
+                  'background-position': 'left center'
+                },
+                '50%': {
+                  'background-size': '200% 200%',
+                  'background-position': 'right center'
+                },
+              },
             }
           }
         }
@@ -131,6 +166,14 @@
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
       }
+      
+      .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(0,0,0,0.1);
+          border-radius: 10px;
+      }
     </style>
   <script type="importmap">
 {
@@ -140,7 +183,9 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
     "recharts": "https://esm.sh/recharts@^2.12.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.32.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.557.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.557.0",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "jspdf": "https://esm.sh/jspdf@2.5.1"
   }
 }
 </script>

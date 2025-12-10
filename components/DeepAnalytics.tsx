@@ -34,10 +34,10 @@ const DeepAnalytics: React.FC<DeepAnalyticsProps> = ({ report }) => {
     if (severityCounts[f.severity] !== undefined) severityCounts[f.severity]++;
   });
   const severityData = [
-    { name: 'Low', count: severityCounts[RiskSeverity.LOW], fill: '#4FF2D8' }, // Cyber Mint
-    { name: 'Med', count: severityCounts[RiskSeverity.MEDIUM], fill: '#facc15' }, // Yellow
-    { name: 'High', count: severityCounts[RiskSeverity.HIGH], fill: '#fb923c' }, // Orange
-    { name: 'Critical', count: severityCounts[RiskSeverity.CRITICAL], fill: '#C46CFF' } // Neon Purple
+    { name: 'Low', count: severityCounts[RiskSeverity.LOW], fill: 'url(#gradLow)' }, 
+    { name: 'Med', count: severityCounts[RiskSeverity.MEDIUM], fill: 'url(#gradMed)' }, 
+    { name: 'High', count: severityCounts[RiskSeverity.HIGH], fill: 'url(#gradHigh)' }, 
+    { name: 'Critical', count: severityCounts[RiskSeverity.CRITICAL], fill: 'url(#gradCrit)' } 
   ];
 
   // 3. Prepare Entity Type Data
@@ -86,11 +86,12 @@ const DeepAnalytics: React.FC<DeepAnalyticsProps> = ({ report }) => {
                         data={complianceData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
+                        innerRadius={45}
                         outerRadius={70}
                         paddingAngle={5}
                         dataKey="value"
                         stroke="none"
+                        cornerRadius={6}
                     >
                         {complianceData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
@@ -120,6 +121,24 @@ const DeepAnalytics: React.FC<DeepAnalyticsProps> = ({ report }) => {
         <div className="w-full h-48">
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={severityData}>
+                    <defs>
+                      <linearGradient id="gradLow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4FF2D8" />
+                        <stop offset="100%" stopColor="#2CBFA8" />
+                      </linearGradient>
+                      <linearGradient id="gradMed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#facc15" />
+                        <stop offset="100%" stopColor="#eab308" />
+                      </linearGradient>
+                      <linearGradient id="gradHigh" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#fb923c" />
+                        <stop offset="100%" stopColor="#ea580c" />
+                      </linearGradient>
+                      <linearGradient id="gradCrit" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#C46CFF" />
+                        <stop offset="100%" stopColor="#8A51E1" />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
@@ -149,10 +168,12 @@ const DeepAnalytics: React.FC<DeepAnalyticsProps> = ({ report }) => {
                         data={entityData}
                         cx="50%"
                         cy="50%"
+                        innerRadius={30}
                         outerRadius={70}
                         dataKey="value"
                         stroke="rgba(255,255,255,0.5)"
                         strokeWidth={2}
+                        paddingAngle={2}
                     >
                         {entityData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />

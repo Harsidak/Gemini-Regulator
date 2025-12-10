@@ -42,7 +42,7 @@ const responseSchema: Schema = {
             risk_vector: { type: Type.STRING, enum: ['Financial', 'Operational', 'Legal', 'Fraud'] },
             explanation: { type: Type.STRING },
             verbatim_quote: { type: Type.STRING, description: "The exact extracted text, number, or data point from the file." },
-            source_citation: { type: Type.STRING, description: "The specific document name and page number/row number."}
+            source_citation: { type: Type.STRING, description: "PRECISE location: e.g., 'Page 4, Paragraph 2', 'Row 45', or 'Bottom Right Signature'."}
         },
         required: ["risk_vector", "explanation", "verbatim_quote", "source_citation"]
       },
@@ -129,9 +129,24 @@ const responseSchema: Schema = {
             required: ["type", "value", "risk_level", "location_citation"]
         },
         description: "List of Personally Identifiable Information (PII) detected in the documents."
+    },
+    causal_chain: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                step_number: { type: Type.INTEGER },
+                event_description: { type: Type.STRING },
+                risk_impact: { type: Type.STRING, description: "How this event contributes to risk" },
+                supporting_evidence: { type: Type.STRING, description: "The specific quote or data point proving this event" },
+                source_document: { type: Type.STRING, description: "Citation for the evidence" }
+            },
+            required: ["step_number", "event_description", "risk_impact", "supporting_evidence", "source_document"]
+        },
+        description: "A step-by-step causal analysis showing how one event leads to another risk."
     }
   },
-  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "compliance_matrix", "contract_sentiment", "pii_findings"]
+  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "compliance_matrix", "contract_sentiment", "pii_findings", "causal_chain"]
 };
 
 export const analyzeDocuments = async (files: ProcessedFile[]): Promise<RegulatorReport> => {
@@ -143,9 +158,11 @@ export const analyzeDocuments = async (files: ProcessedFile[]): Promise<Regulato
 
   // Construct parts: Text prompt + Files
   const parts: any[] = [
-    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, performing a compliance audit against standard frameworks, performing a sentiment/risk analysis on key contract clauses, and identifying ALL Personally Identifiable Information (PII) to generate a privacy audit. For every risk explanation, you MUST provide the exact verbatim data or quote from the file and the specific source citation." }
+    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, performing a compliance audit against standard frameworks, performing a sentiment/risk analysis on key contract clauses, and identifying ALL Personally Identifiable Information (PII) to generate a privacy audit. Construct a Causal Chain Analysis that links specific events to risks with supporting evidence for each step. For every risk explanation, you MUST provide the exact verbatim data or quote from the file and the specific source citation including page numbers, row numbers, or image locations." }
   ];
 
+  // Note: Large payloads might trigger XHR errors on the browser side.
+  // The client code should enforce file size limits (e.g., < 4MB per file).
   files.forEach(file => {
     parts.push({
       inlineData: {
@@ -177,8 +194,15 @@ export const analyzeDocuments = async (files: ProcessedFile[]): Promise<Regulato
 
     return JSON.parse(text) as RegulatorReport;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    
+    // Improved error handling for common XHR/Network issues
+    const errorMessage = error.message || "";
+    if (errorMessage.includes("xhr error") || errorMessage.includes("500") || errorMessage.includes("Rpc failed")) {
+       throw new Error("Network/Upload failed. The files might be too large. Please try reducing file size (max 4MB per file) or check your internet connection.");
+    }
+
     throw error;
   }
 };

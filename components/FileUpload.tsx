@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, FileText, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, AlertCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { ProcessedFile } from '../types';
 
 interface FileUploadProps {
@@ -14,12 +14,21 @@ interface UploadingFile {
   progress: number;
 }
 
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB limit to prevent XHR/Payload errors
+
 const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const processFile = (file: File): Promise<ProcessedFile> => {
     return new Promise((resolve, reject) => {
+      // Size Validation
+      if (file.size > MAX_FILE_SIZE) {
+        reject(new Error(`File too large. Max size is 4MB.`));
+        return;
+      }
+
       const fileId = Math.random().toString(36).substring(2, 9);
       setUploadingFiles(prev => [...prev, { id: fileId, name: file.name, progress: 0 }]);
 
@@ -53,16 +62,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
     });
   };
 
-  const handleFiles = (fileList: File[]) => {
-    fileList.forEach(async (file) => {
+  const handleFiles = async (fileList: File[]) => {
+    setError(null);
+    for (const file of fileList) {
       try {
         const processed = await processFile(file);
         setFiles(prev => [...prev, processed]);
-      } catch (error) {
-        console.error("Error processing file", file.name, error);
-        alert(`Failed to upload ${file.name}`);
+      } catch (err: any) {
+        console.error("Error processing file", file.name, err);
+        setError(`${file.name}: ${err.message || 'Upload failed'}`);
+        setTimeout(() => setError(null), 5000);
       }
-    });
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,7 +110,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Glass styles for container
   let containerClass = "group relative rounded-3xl p-12 text-center transition-all duration-500 border-2 border-dashed ";
   if (isAnalyzing) {
     containerClass += "border-slate-300 bg-slate-50/50 cursor-not-allowed opacity-50";
@@ -111,6 +121,16 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
 
   return (
     <div className="space-y-6 relative z-10">
+      
+      {/* Error Toast */}
+      {error && (
+        <div className="absolute -top-16 left-0 right-0 mx-auto max-w-sm bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-slide-down z-50">
+            <AlertTriangle size={18} />
+            <span className="text-sm font-semibold">{error}</span>
+            <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-800"><X size={16}/></button>
+        </div>
+      )}
+
       <div 
         className={containerClass}
         onDragOver={onDragOver}
@@ -134,7 +154,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
             {isDragging ? "Drop Evidence Here" : "Upload Documentation"}
           </h3>
           <p className="text-slate-500 mt-3 text-base font-medium max-w-sm mx-auto">
-            PDFs, Images, or CSVs. <br/>Drag & drop to fuse multimodal data.
+            PDFs, Images, or CSVs (Max 4MB). <br/>Drag & drop to fuse multimodal data.
           </p>
         </label>
         
@@ -149,7 +169,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
           
           {/* Active Uploads */}
           {uploadingFiles.map((file) => (
-            <div key={file.id} className="relative p-4 bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl shadow-sm overflow-hidden">
+            <div key={file.id} className="relative p-4 bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl shadow-sm overflow-hidden animate-scale-in">
                <div className="flex items-center space-x-3 mb-3">
                   <div className="bg-indigo-50 p-2 rounded-xl">
                     <Loader2 size={20} className="text-indigo-600 animate-spin" />
@@ -170,7 +190,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
 
           {/* Processed Files */}
           {files.map((file, idx) => (
-            <div key={idx} className="group flex items-center justify-between p-4 bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
+            <div key={idx} className="group flex items-center justify-between p-4 bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 animate-scale-in">
               <div className="flex items-center space-x-3 overflow-hidden">
                 <div className="bg-gradient-to-br from-slate-100 to-slate-200 p-2.5 rounded-xl text-slate-600 shadow-inner">
                   <FileText size={20} />
@@ -195,7 +215,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles, isAnalyzing })
       )}
 
       {files.length === 0 && uploadingFiles.length === 0 && !isDragging && (
-        <div className="flex items-center justify-center space-x-2 text-indigo-600/70 bg-indigo-50/50 p-3 rounded-2xl text-sm font-medium border border-indigo-100/50 backdrop-blur-sm">
+        <div className="flex items-center justify-center space-x-2 text-indigo-600/70 bg-indigo-50/50 p-3 rounded-2xl text-sm font-medium border border-indigo-100/50 backdrop-blur-sm animate-scale-in">
           <AlertCircle size={18} />
           <span>Upload at least one document to unlock intelligence.</span>
         </div>

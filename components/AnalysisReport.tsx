@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { RegulatorReport, RiskSeverity, RegulatoryNewsData } from '../types';
 import RiskChart from './RiskChart';
 import Timeline from './Timeline';
@@ -8,8 +8,11 @@ import RegulatoryNews from './RegulatoryNews';
 import ContractSentiment from './ContractSentiment';
 import PIIFinder from './PIIFinder';
 import DeepAnalytics from './DeepAnalytics';
+import CausalChain from './CausalChain';
 import { fetchRegulatoryNews } from '../services/geminiService';
-import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface AnalysisReportProps {
   report: RegulatorReport;
@@ -33,6 +36,8 @@ const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
 const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
   const [newsData, setNewsData] = useState<RegulatoryNewsData | null>(null);
   const [loadingNews, setLoadingNews] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const handleFetchNews = async () => {
     setLoadingNews(true);
@@ -46,14 +51,86 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+
+    setIsExporting(true);
+
+    // 1. Prepare DOM for capture
+    const originalStyles: { element: HTMLElement, maxHeight: string, overflow: string }[] = [];
+    const scrollableElements = reportRef.current.querySelectorAll('.overflow-y-auto, .custom-scrollbar');
+
+    // Temporarily expand all scrollable sections to show full content
+    scrollableElements.forEach((el) => {
+        const element = el as HTMLElement;
+        originalStyles.push({
+            element,
+            maxHeight: element.style.maxHeight,
+            overflow: element.style.overflow
+        });
+        element.style.maxHeight = 'none';
+        element.style.overflow = 'visible';
+    });
+
+    try {
+      // Wait for DOM reflow
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 2. Capture
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 3, // High resolution for crisper text
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#f8fafc', // Force a solid background to avoid transparency issues
+        logging: false,
+        onclone: (clonedDoc) => {
+            // Optional: tweaks to the cloned document before screenshot
+            const clonedReport = clonedDoc.getElementById('report-content');
+            if (clonedReport) {
+                clonedReport.style.padding = '20px'; // Add some padding for the PDF
+            }
+        }
+      });
+
+      // 3. Generate PDF
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      // Create a custom size PDF to match the long scrolling content (like a digital receipt)
+      // This prevents awkward page breaks cutting graphs in half.
+      const pdfCustom = new jsPDF('p', 'mm', [pdfWidth, imgHeight]);
+      pdfCustom.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+      pdfCustom.save(`Regulator_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+      alert("Failed to export PDF. Please try again.");
+    } finally {
+      // 4. Restore DOM state
+      scrollableElements.forEach((el, index) => {
+          const original = originalStyles[index];
+          if (original) {
+              const element = el as HTMLElement;
+              element.style.maxHeight = original.maxHeight;
+              element.style.overflow = original.overflow;
+          }
+      });
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-8 pb-12 animate-in slide-in-from-bottom-8 fade-in duration-700">
+    <div ref={reportRef} id="report-content" className="space-y-8 pb-12 transition-all">
       
       {/* --- TOP ROW: SUMMARY & RADAR --- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Executive Summary Card */}
-        <div className="lg:col-span-2 relative group overflow-hidden rounded-[2.5rem] shadow-2xl shadow-neon-blue/10 transition-all duration-500 hover:shadow-neon-blue/20">
+        <div className="lg:col-span-2 relative group overflow-hidden rounded-[2.5rem] shadow-2xl shadow-neon-blue/10 transition-all duration-500 hover:shadow-neon-blue/20 opacity-0 animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
             {/* Dark Glass Background */}
             <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl z-0"></div>
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 z-0"></div>
@@ -64,11 +141,24 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
 
             <div className="relative z-10 p-10 h-full flex flex-col justify-between">
                 <div>
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
-                            <BrainCircuit className="text-neon-blue-light" size={28}/>
+                    <div className="flex items-center justify-between gap-3 mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white/10 p-2.5 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                                <BrainCircuit className="text-neon-blue-light" size={28}/>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white tracking-tight">Executive Intelligence Summary</h2>
                         </div>
-                        <h2 className="text-2xl font-bold text-white tracking-tight">Executive Intelligence Summary</h2>
+                        
+                        {/* Export Button */}
+                        <button 
+                            onClick={handleExportPDF}
+                            disabled={isExporting}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-xs font-bold transition-all data-[exporting=true]:opacity-50"
+                            data-exporting={isExporting}
+                        >
+                            {isExporting ? <Loader2 size={14} className="animate-spin"/> : <Download size={14} />}
+                            {isExporting ? "Generating..." : "Export PDF"}
+                        </button>
                     </div>
                     <p className="text-slate-200 leading-relaxed text-lg font-light tracking-wide opacity-90">
                         {report.c_suite_summary}
@@ -81,8 +171,8 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
                         <span className="text-neon-blue-electric">• Gemini 2.5 Flash</span>
                     </div>
 
-                    {/* Fetch News Button */}
-                    {!newsData && (
+                    {/* Fetch News Button (Hide during export to keep it clean) */}
+                    {!isExporting && !newsData && (
                         <button 
                             onClick={handleFetchNews}
                             disabled={loadingNews}
@@ -97,29 +187,38 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
         </div>
 
         {/* Risk Radar */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 opacity-0 animate-slide-up [animation-delay:200ms] [animation-fill-mode:forwards]">
           <RiskChart scores={report.risk_scores} />
         </div>
       </div>
 
       {/* --- DEEP ANALYTICS ROW --- */}
-      <DeepAnalytics report={report} />
+      <div className="opacity-0 animate-slide-up [animation-delay:300ms] [animation-fill-mode:forwards]">
+        <DeepAnalytics report={report} />
+      </div>
 
       {/* --- LIVE NEWS SECTION (Conditional) --- */}
       {newsData && (
-        <div className="grid grid-cols-1">
+        <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
             <RegulatoryNews data={newsData} />
         </div>
       )}
 
+      {/* --- CAUSAL CHAIN (New) --- */}
+      {report.causal_chain && report.causal_chain.length > 0 && (
+         <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:350ms] [animation-fill-mode:forwards]">
+             <CausalChain steps={report.causal_chain} />
+         </div>
+      )}
+
       {/* --- SECOND ROW: TIMELINE & ENTITIES --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 opacity-0 animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
         <Timeline events={report.timeline} />
         <EntityGrid entities={report.entities} />
       </div>
 
       {/* --- THIRD ROW: RED FLAGS & FIX PLAN --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 opacity-0 animate-slide-up [animation-delay:500ms] [animation-fill-mode:forwards]">
         
         {/* Red Flags */}
         <div className="glass-panel rounded-[2.5rem] flex flex-col h-full overflow-hidden">
@@ -134,7 +233,7 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
                 <div className="p-8 text-center text-slate-400 italic">No red flags detected.</div>
             ) : (
                 report.red_flags.map((flag, idx) => (
-                <div key={idx} className="p-5 hover:bg-white/40 transition-colors rounded-2xl mx-2 my-1">
+                <div key={idx} className="p-5 hover:bg-white/40 transition-colors rounded-2xl mx-2 my-1 break-inside-avoid">
                     <div className="flex items-start justify-between mb-2 gap-4">
                         <span className="font-bold text-slate-800 text-sm leading-snug">{flag.issue}</span>
                         <SeverityBadge severity={flag.severity} />
@@ -162,7 +261,7 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
           </div>
            <div className="divide-y divide-white/40 overflow-y-auto max-h-[500px] custom-scrollbar p-2">
              {report.executive_fix_plan.map((plan, idx) => (
-               <div key={idx} className="p-5 flex gap-5 hover:bg-white/40 transition-colors rounded-2xl mx-2 my-1">
+               <div key={idx} className="p-5 flex gap-5 hover:bg-white/40 transition-colors rounded-2xl mx-2 my-1 break-inside-avoid">
                  <div className="flex-shrink-0 mt-1">
                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-200 to-emerald-400 text-emerald-900 flex items-center justify-center text-sm font-bold shadow-sm">
                      {idx + 1}
@@ -186,7 +285,7 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
       </div>
 
       {/* --- FOURTH ROW: CONTRACT SENTIMENT & COMPLIANCE --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 opacity-0 animate-slide-up [animation-delay:600ms] [animation-fill-mode:forwards]">
         {/* Contract Sentiment Analysis */}
         {report.contract_sentiment && report.contract_sentiment.length > 0 && (
            <ContractSentiment clauses={report.contract_sentiment} />
@@ -202,7 +301,7 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
             </h3>
             <div className="space-y-3">
                 {report.compliance_matrix.map((check, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-white/40 border border-white/50 rounded-xl">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-white/40 border border-white/50 rounded-xl break-inside-avoid">
                         <span className="text-sm font-semibold text-slate-700">{check.regulation}</span>
                         <div className="flex items-center gap-3">
                             <span className="text-xs text-slate-500 hidden sm:block">{check.notes}</span>
@@ -222,13 +321,13 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
       
       {/* --- FIFTH ROW: PII FINDINGS --- */}
       {report.pii_findings && report.pii_findings.length > 0 && (
-        <div className="grid grid-cols-1">
+        <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:700ms] [animation-fill-mode:forwards]">
              <PIIFinder findings={report.pii_findings} />
         </div>
       )}
 
       {/* --- SIXTH ROW: EVIDENCE --- */}
-      <div className="grid grid-cols-1">
+      <div className="grid grid-cols-1 opacity-0 animate-slide-up [animation-delay:800ms] [animation-fill-mode:forwards]">
         {/* Evidence Chains with Sources */}
         <div className="glass-panel rounded-[2.5rem] p-8">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-lg">
@@ -239,7 +338,7 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
             </h3>
             <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                 {report.evidence_backed_explanations.map((item, idx) => (
-                    <div key={idx} className={`p-4 rounded-2xl bg-white/40 border border-white/50 hover:bg-white/60 transition-colors shadow-sm relative overflow-hidden group border-l-4 ${
+                    <div key={idx} className={`p-4 rounded-2xl bg-white/40 border border-white/50 hover:bg-white/60 transition-colors shadow-sm relative overflow-hidden group border-l-4 break-inside-avoid ${
                         item.risk_vector === 'Financial' ? 'border-l-indigo-500' :
                         item.risk_vector === 'Fraud' ? 'border-l-red-500' :
                         item.risk_vector === 'Legal' ? 'border-l-orange-500' :
