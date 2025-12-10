@@ -39,12 +39,14 @@ const responseSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
+            risk_vector: { type: Type.STRING, enum: ['Financial', 'Operational', 'Legal', 'Fraud'] },
             explanation: { type: Type.STRING },
-            source: { type: Type.STRING, description: "The specific document and page/row citation."}
+            verbatim_quote: { type: Type.STRING, description: "The exact extracted text, number, or data point from the file." },
+            source_citation: { type: Type.STRING, description: "The specific document name and page number/row number."}
         },
-        required: ["explanation", "source"]
+        required: ["risk_vector", "explanation", "verbatim_quote", "source_citation"]
       },
-      description: "Detailed explanations citing specific document fragments for risks found."
+      description: "Detailed breakdown of risks, citing the exact raw data found in the files."
     },
     executive_fix_plan: {
       type: Type.ARRAY,
@@ -99,9 +101,37 @@ const responseSchema: Schema = {
             },
             required: ["regulation", "status", "notes"]
         }
+    },
+    contract_sentiment: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                clause_text: { type: Type.STRING },
+                sentiment: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative", "High Risk"] },
+                risk_level: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                analysis: { type: Type.STRING }
+            },
+            required: ["clause_text", "sentiment", "risk_level", "analysis"]
+        },
+        description: "Sentiment and risk analysis of key contract clauses."
+    },
+    pii_findings: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                type: { type: Type.STRING, description: "Type of PII (e.g., Email, SSN, Phone, Address)" },
+                value: { type: Type.STRING, description: "The PII value found" },
+                risk_level: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                location_citation: { type: Type.STRING, description: "Document and location where PII was found" }
+            },
+            required: ["type", "value", "risk_level", "location_citation"]
+        },
+        description: "List of Personally Identifiable Information (PII) detected in the documents."
     }
   },
-  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "compliance_matrix"]
+  required: ["extracted_evidence", "red_flags", "risk_scores", "evidence_backed_explanations", "executive_fix_plan", "c_suite_summary", "timeline", "entities", "compliance_matrix", "contract_sentiment", "pii_findings"]
 };
 
 export const analyzeDocuments = async (files: ProcessedFile[]): Promise<RegulatorReport> => {
@@ -113,7 +143,7 @@ export const analyzeDocuments = async (files: ProcessedFile[]): Promise<Regulato
 
   // Construct parts: Text prompt + Files
   const parts: any[] = [
-    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, and performing a compliance audit against standard frameworks." }
+    { text: "Analyze the attached documents and generate a full Regulatory & Risk Intelligence Report. Pay special attention to extracting a timeline of events, key entities involved, performing a compliance audit against standard frameworks, performing a sentiment/risk analysis on key contract clauses, and identifying ALL Personally Identifiable Information (PII) to generate a privacy audit. For every risk explanation, you MUST provide the exact verbatim data or quote from the file and the specific source citation." }
   ];
 
   files.forEach(file => {

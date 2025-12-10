@@ -44,16 +44,39 @@ export interface ComplianceCheck {
   notes: string;
 }
 
+export interface ContractClauseSentiment {
+  clause_text: string;
+  sentiment: 'Positive' | 'Neutral' | 'Negative' | 'High Risk';
+  risk_level: 'Low' | 'Medium' | 'High';
+  analysis: string;
+}
+
+export interface PIIFinding {
+  type: string; // e.g. "Email", "SSN", "Phone", "Address", "Credit Card"
+  value: string;
+  risk_level: 'High' | 'Medium' | 'Low';
+  location_citation: string;
+}
+
+export interface EvidenceItem {
+    risk_vector: 'Financial' | 'Operational' | 'Legal' | 'Fraud';
+    explanation: string;
+    verbatim_quote: string;
+    source_citation: string;
+}
+
 export interface RegulatorReport {
   extracted_evidence: string[];
   red_flags: RedFlag[];
   risk_scores: RiskScores;
-  evidence_backed_explanations: { explanation: string; source: string }[];
+  evidence_backed_explanations: EvidenceItem[];
   executive_fix_plan: FixPlanStep[];
   c_suite_summary: string;
   timeline: TimelineEvent[];
   entities: Entity[];
   compliance_matrix: ComplianceCheck[];
+  contract_sentiment: ContractClauseSentiment[];
+  pii_findings: PIIFinding[];
 }
 
 export interface ProcessedFile {

@@ -5,8 +5,10 @@ import RiskChart from './RiskChart';
 import Timeline from './Timeline';
 import EntityGrid from './EntityGrid';
 import RegulatoryNews from './RegulatoryNews';
+import ContractSentiment from './ContractSentiment';
+import PIIFinder from './PIIFinder';
 import { fetchRegulatoryNews } from '../services/geminiService';
-import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, ArrowRight, BrainCircuit, Quote, Globe, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search } from 'lucide-react';
 
 interface AnalysisReportProps {
   report: RegulatorReport;
@@ -179,9 +181,13 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
         </div>
       </div>
 
-      {/* --- FOURTH ROW: COMPLIANCE & EVIDENCE --- */}
+      {/* --- FOURTH ROW: CONTRACT SENTIMENT & COMPLIANCE --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
+        {/* Contract Sentiment Analysis */}
+        {report.contract_sentiment && report.contract_sentiment.length > 0 && (
+           <ContractSentiment clauses={report.contract_sentiment} />
+        )}
+        
         {/* Compliance Matrix */}
         <div className="glass-panel rounded-[2.5rem] p-8">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-lg">
@@ -208,30 +214,70 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
                 ))}
             </div>
         </div>
+      </div>
+      
+      {/* --- FIFTH ROW: PII FINDINGS --- */}
+      {report.pii_findings && report.pii_findings.length > 0 && (
+        <div className="grid grid-cols-1">
+             <PIIFinder findings={report.pii_findings} />
+        </div>
+      )}
 
+      {/* --- SIXTH ROW: EVIDENCE --- */}
+      <div className="grid grid-cols-1">
         {/* Evidence Chains with Sources */}
         <div className="glass-panel rounded-[2.5rem] p-8">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-lg">
                 <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
-                    <AlertTriangle size={20} />
+                    <Search size={20} />
                 </div>
-                Evidence Backup
+                Forensic Evidence Log
             </h3>
-            <ul className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                 {report.evidence_backed_explanations.map((item, idx) => (
-                    <li key={idx} className="text-sm text-slate-600 p-4 rounded-2xl bg-white/40 border border-white/40 hover:bg-white/60 transition-colors shadow-sm">
-                        <div className="flex gap-3 mb-2">
-                            <ArrowRight size={18} className="text-neon-blue-electric flex-shrink-0 mt-0.5"/>
-                            <span className="leading-relaxed font-medium">{item.explanation}</span>
+                    <div key={idx} className={`p-4 rounded-2xl bg-white/40 border border-white/50 hover:bg-white/60 transition-colors shadow-sm relative overflow-hidden group border-l-4 ${
+                        item.risk_vector === 'Financial' ? 'border-l-indigo-500' :
+                        item.risk_vector === 'Fraud' ? 'border-l-red-500' :
+                        item.risk_vector === 'Legal' ? 'border-l-orange-500' :
+                        'border-l-emerald-500'
+                    }`}>
+                        
+                        {/* Header: Risk Vector */}
+                        <div className="flex justify-between items-start mb-2">
+                             <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                                item.risk_vector === 'Financial' ? 'bg-indigo-100 text-indigo-700' :
+                                item.risk_vector === 'Fraud' ? 'bg-red-100 text-red-700' :
+                                item.risk_vector === 'Legal' ? 'bg-orange-100 text-orange-700' :
+                                'bg-emerald-100 text-emerald-700'
+                            }`}>
+                                {item.risk_vector} Vector
+                             </span>
                         </div>
-                        <div className="flex justify-end">
-                            <span className="text-[10px] font-bold text-slate-400 bg-white/50 px-2 py-1 rounded-md border border-white/50">
-                                Ref: {item.source}
-                            </span>
+
+                        {/* Analysis */}
+                        <div className="mb-3 text-sm font-medium text-slate-800 leading-snug">
+                            {item.explanation}
                         </div>
-                    </li>
+
+                        {/* Verbatim Quote / Data */}
+                        <div className="bg-slate-100/50 rounded-lg p-3 border border-slate-200/50 mb-3 group-hover:bg-white/80 transition-colors">
+                            <div className="flex gap-2 items-start text-xs text-slate-500 font-mono">
+                                <Quote size={12} className="flex-shrink-0 mt-0.5 text-slate-400" />
+                                <span className="italic">"{item.verbatim_quote}"</span>
+                            </div>
+                        </div>
+
+                        {/* Source Citation */}
+                        <div className="flex justify-end items-center">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/60 border border-white/60 rounded-lg text-[10px] font-bold text-slate-500 hover:text-neon-blue-deep hover:border-neon-blue/30 hover:bg-white/80 transition-all cursor-help" title="Location in document">
+                                <FileText size={10} />
+                                <span>REF: {item.source_citation}</span>
+                            </div>
+                        </div>
+
+                    </div>
                 ))}
-            </ul>
+            </div>
         </div>
 
       </div>
