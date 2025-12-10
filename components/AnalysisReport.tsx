@@ -7,6 +7,7 @@ import EntityGrid from './EntityGrid';
 import RegulatoryNews from './RegulatoryNews';
 import ContractSentiment from './ContractSentiment';
 import PIIFinder from './PIIFinder';
+import DeepAnalytics from './DeepAnalytics';
 import { fetchRegulatoryNews } from '../services/geminiService';
 import { AlertTriangle, CheckCircle, ShieldAlert, BookOpen, BrainCircuit, Quote, Globe, Loader2, FileText, Search } from 'lucide-react';
 
@@ -100,6 +101,9 @@ const AnalysisReport: React.FC<AnalysisReportProps> = ({ report }) => {
           <RiskChart scores={report.risk_scores} />
         </div>
       </div>
+
+      {/* --- DEEP ANALYTICS ROW --- */}
+      <DeepAnalytics report={report} />
 
       {/* --- LIVE NEWS SECTION (Conditional) --- */}
       {newsData && (
